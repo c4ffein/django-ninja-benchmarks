@@ -1,6 +1,9 @@
+import os
 import requests
 from flask import Flask, request
 from marshmallow import Schema, fields, validate
+
+NETWORK_SERVICE_URL = os.environ.get('NETWORK_SERVICE_URL', 'http://network_service:8000/job')
 
 
 app = Flask(__name__)
@@ -46,8 +49,15 @@ def create():
     return {"success": True}, 201
 
 
+@app.route("/api/create_async", methods=["POST"])
+async def create_async():
+    json_data = request.get_json()
+    data = model_schema.load(json_data)
+    return {"success": True}, 201
+
+
 @app.route("/api/iojob", methods=["GET"])
 def iojob():
-    response = requests.get('http://network_service:8000/job')
+    response = requests.get(NETWORK_SERVICE_URL)
     assert response.status_code == 200
     return {"success": True}, 200

@@ -1,35 +1,14 @@
-version: '3.7'
-
-x-common: &common
-  build: .
-  ports:
-      - "8000:8000"
-
-
-# Services not meant to be started all at once
-# see the run_test.py for details
-
+# Modernized: one self-contained image; bench.py runs the servers + load gen inside it.
+# (The original per-framework services existed for the 2020 run_test.py + host-side `ab`
+#  orchestration; that flow is superseded by bench.py and kept only in git history.)
+#
+#   docker compose build
+#   docker compose run --rm bench bench.py server-matrix
+#   docker compose run --rm bench bench.py route-matrix
+#   docker compose run --rm bench microbench_validate.py ninja
 services:
-  flask_marshmallow_uwsgi:
-    <<: *common
-    working_dir: /app_flask_marshmallow
-    command: uwsgi --http 0.0.0.0:8000 --module main:app --workers ${WORKERS}
-  
-  drf_uwsgi:
-    <<: *common
-    working_dir: /app_drf
-    command: uwsgi --http 0.0.0.0:8000 --module drf.wsgi:application --workers ${WORKERS}
-
-  ninja_uwsgi:
-    <<: *common
-    working_dir: /app_ninja
-    command: uwsgi --http 0.0.0.0:8000 --module djninja.wsgi:application --workers ${WORKERS}
-
-  ninja_uvicorn:
-    <<: *common
-    working_dir: /app_ninja
-    command: uvicorn djninja.asgi:application --host 0.0.0.0 --workers ${WORKERS}
-
-  network_service:
+  bench:
     build: .
-    command: python network_service.py > /dev/null
+    volumes:
+      - ./ci-out:/out
+    command: ["bench.py", "server-matrix", "--output-dir", "/out"]

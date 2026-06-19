@@ -1,8 +1,12 @@
 import json
+import os
 import requests
+from adrf.decorators import api_view as async_api_view
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+
+NETWORK_SERVICE_URL = os.environ.get('NETWORK_SERVICE_URL', 'http://network_service:8000/job')
 
 
 class Location(serializers.Serializer):
@@ -48,8 +52,16 @@ def create(request):
     return Response({'success': True})
 
 
+# Async DRF via the `adrf` package (async-capable views), same serializer/validation.
+@async_api_view(['POST'])
+async def create_async(request):
+    data = Model(data=json.loads(request.body))
+    assert data.is_valid()
+    return Response({'success': True})
+
+
 @api_view(['GET'])
 def iojob(request):
-    response = requests.get('http://network_service:8000/job')
+    response = requests.get(NETWORK_SERVICE_URL)
     assert response.status_code == 200
     return Response({'success': True})

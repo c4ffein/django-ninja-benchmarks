@@ -18,5 +18,6 @@ from . import views
 
 urlpatterns = [
     path('api/create', views.create),
+    path('api/create_async', views.create_async),
     path('api/iojob', views.iojob),
 ]

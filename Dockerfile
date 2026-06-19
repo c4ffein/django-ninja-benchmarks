@@ -1,12 +1,40 @@
-FROM python:3.8.2
+# Self-contained benchmark image: app code + 2026 deps (uv) + oha load generator.
+# bench.py orchestrates everything on 127.0.0.1 inside the container, so a single
+# `docker run djnb bench.py server-matrix` spins the app servers, the network
+# service, and the load run with no host-side docker-compose choreography.
+FROM python:3.13-slim-bookworm
 
-ENV PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=on
+ENV PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    BENCH_VENV_BIN=/app/.venv/bin \
+    BENCH_OHA=/usr/local/bin/oha \
+    PATH=/app/.venv/bin:/root/.local/bin:$PATH
 
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install -r /tmp/requirements.txt
+# build-essential: uWSGI compiles from sdist (needs gcc + Python headers).
+# curl/ca-certificates: fetch uv + the oha binary.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY common_django_settings.py /common_django_settings.py
-COPY app_drf /app_drf
-COPY app_flask_marshmallow /app_flask_marshmallow
-COPY app_ninja /app_ninja
-COPY network_service.py /network_service.py
+# oha prebuilt binary (Rust). Bump OHA_VERSION as needed; asset name is from the
+# hatoo/oha releases page (verify on first build).
+ARG OHA_VERSION=v1.4.5
+ADD https://github.com/hatoo/oha/releases/download/${OHA_VERSION}/oha-linux-amd64 /usr/local/bin/oha
+RUN chmod +x /usr/local/bin/oha
+
+WORKDIR /app
+
+# Dependency layer first for caching: install into /app/.venv from pyproject (+ lock if present).
+COPY pyproject.toml ./
+COPY uv.lock* ./
+RUN uv venv /app/.venv \
+    && uv pip install --python /app/.venv/bin/python -r pyproject.toml
+
+# Then the code.
+COPY . .
+
+# Default entrypoint is the venv python, so: `docker run djnb bench.py server-matrix`
+# or `docker run djnb microbench_validate.py ninja`.
+ENTRYPOINT ["/app/.venv/bin/python"]
+CMD ["bench.py", "server-matrix"]

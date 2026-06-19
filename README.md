@@ -2,9 +2,15 @@
 
 ## Results (2026)
 
-![Parsing / validation JSON — concurrency 1, sync vs async](charts/parse_validate.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/parse_validate-dark.svg">
+  <img alt="Parsing / validation JSON — concurrency 1, sync vs async" src="charts/parse_validate.svg">
+</picture>
 
-![Calling a slow network operation — concurrency 50, worker sweep](charts/concurrency.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/concurrency-dark.svg">
+  <img alt="Calling a slow network operation — concurrency 50, worker sweep" src="charts/concurrency.svg">
+</picture>
 
 <sub>Re-run on a modern 2026 stack (this fork) — see [2026 local run](#2026-local-run-no-docker-no-root) below. Original 2020 result: [img/results.png](img/results.png).</sub>
 
@@ -38,8 +44,8 @@ uv venv --python-preference only-managed --python 3.14
 uv pip install -r requirements-local.txt
 cargo install oha            # or grab a prebuilt binary from the oha releases
 
-uv run python run_local.py   # both panels -> results_local.json / .csv
-uv run python make_charts.py # -> charts/parse_validate.svg, charts/concurrency.svg
+uv run python run_local.py   # both panels -> benchmark_results/results_local.json / .csv
+uv run python make_charts.py # -> charts/{parse_validate,concurrency}{,-dark}.svg (light + dark)
 ```
 
 What changed vs the original apps: the network-service URL is read from
@@ -55,7 +61,7 @@ DRF via `adrf`) for the route-style comparison below.
 | `microbench_validate.py` | validation CPU only, no HTTP (pydantic vs DRF vs marshmallow) |
 | `server_matrix.py` | parse/validate per framework x {uWSGI, uvicorn} — the server confound |
 | `route_matrix.py` | parse/validate: sync `def`/gunicorn vs async `def`/uvicorn, incl. `adrf` |
-| `make_charts.py` | renders the two SVGs (colors overridable: `--ninja/--flask/--drf/--adrf`) |
+| `make_charts.py` | renders each chart as light + dark SVG (colors overridable: `--ninja/--flask/--drf/--adrf`) |
 
 ### Findings (this machine, 2026-06-14, 8 cores)
 
@@ -70,5 +76,6 @@ DRF via `adrf`) for the route-style comparison below.
   this CPU-bound endpoint (async overhead with no I/O to overlap), for every framework.
   Ninja leads in both stacks; `adrf` is the slowest cell.
 
-Results are committed (`results_local.json/.csv`, `results_server_matrix.json`,
-`results_route_matrix.json`) so the numbers live somewhere reproducible, not just in a PNG.
+Results are committed under `benchmark_results/` (`results_local.json/.csv`,
+`results_server_matrix.json`, `results_route_matrix.json`) so the numbers live somewhere
+reproducible, not just in a PNG.

@@ -1,0 +1,60 @@
+name: benchmark
+
+# Builds the dockerized benchmark and gates on structural invariants (NOT absolute
+# rps -- GitHub runners are too noisy for that). See check_results.py for the gates.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_local_panel:
+        description: "Also run the long concurrency sweep (minutes)"
+        type: boolean
+        default: false
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t djnb .
+
+      - name: Prepare output dir
+        run: mkdir -p ci-out
+
+      # Validation microbench: CPU-only, no sockets -> the most stable gate.
+      # One framework per process (Django settings configure once); collect as JSONL.
+      - name: Microbench (validation CPU)
+        run: |
+          for fw in ninja drf marshmallow; do
+            docker run --rm djnb microbench_validate.py "$fw"
+          done | tee ci-out/results_microbench.jsonl
+
+      - name: Server matrix (short)
+        run: docker run --rm -v "$PWD/ci-out:/out" djnb bench.py server-matrix --duration 2 --output-dir /out
+
+      - name: Route matrix (short)
+        run: docker run --rm -v "$PWD/ci-out:/out" djnb bench.py route-matrix --duration 2 --output-dir /out
+
+      # Opt-in only: the concurrency sweep is 13 worker cases x 3 frameworks, minutes long and noisy.
+      - name: Local panels (optional, long)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_local_panel }}
+        run: docker run --rm -v "$PWD/ci-out:/out" djnb bench.py local --duration 3 --duration-c1 2 --output-dir /out
+
+      - name: Gate results against invariants
+        run: |
+          docker run --rm \
+            -v "$PWD/ci-out:/out" \
+            -v "$PWD/benchmark_results:/baseline" \
+            djnb check_results.py --dir /out --baseline-dir /baseline
+
+      - name: Upload fresh results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: ci-out/

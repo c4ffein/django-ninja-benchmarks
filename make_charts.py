@@ -174,7 +174,7 @@ def chart_concurrency(theme):
     series = ["ninja", "flask", "drf"]
     values = {str(w): {fw: conc[fw][str(w)]["rps"] for fw in series} for w in workers}
     glabels = {g: [g] for g in groups}
-    # Concurrency panel server stack (run_local.py): Ninja async on uvicorn,
+    # Concurrency panel server stack (bench.py local): Ninja async on uvicorn,
     # sync Flask/DRF on uWSGI prefork (one request per worker).
     legend = {
         "ninja": "Django Ninja — uvicorn (async)",

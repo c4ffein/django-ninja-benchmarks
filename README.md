@@ -16,15 +16,12 @@
 
 ---
 
-### Requirements
+### Original suite (2020, legacy)
 
- - Python3
- - Docker + docker-compose
- - ab
+The original Docker + ApacheBench + uWSGI suite. Kept for provenance; for new runs
+prefer the native path in [2026 local run](#2026-local-run-no-docker-no-root) below.
 
-###
-
-Run
+Requirements: Python3, Docker + docker-compose, `ab`.
 
 ```
 python run_test.py
@@ -44,7 +41,7 @@ uv venv --python-preference only-managed --python 3.14
 uv pip install -r requirements-local.txt
 cargo install oha            # or grab a prebuilt binary from the oha releases
 
-uv run python run_local.py   # both panels -> benchmark_results/results_local.json / .csv
+uv run python bench.py local # both panels -> benchmark_results/results_local.json
 uv run python make_charts.py # -> charts/{parse_validate,concurrency}{,-dark}.svg (light + dark)
 ```
 
@@ -55,13 +52,36 @@ DRF via `adrf`) for the route-style comparison below.
 
 ### Runners / experiments
 
-| script | what it measures |
+The three HTTP experiments live behind one CLI, `bench.py` (shared lifecycle/load
+plumbing in `harness.py`); `microbench_validate.py` stays separate because it runs
+in-process with no server. Every runner writes a `benchmark_results/results_*.json`
+that `make_charts.py` reads.
+
+| command | what it measures |
 |---|---|
-| `run_local.py` | both original panels, native (sync apps on uWSGI, Ninja async on uvicorn) |
-| `microbench_validate.py` | validation CPU only, no HTTP (pydantic vs DRF vs marshmallow) |
-| `server_matrix.py` | parse/validate per framework x {uWSGI, uvicorn} — the server confound |
-| `route_matrix.py` | parse/validate: sync `def`/gunicorn vs async `def`/uvicorn, incl. `adrf` |
+| `bench.py local` | both original panels, native (sync apps on uWSGI, Ninja async on uvicorn) |
+| `bench.py server-matrix` | parse/validate per framework x {uWSGI, uvicorn} — the server confound |
+| `bench.py route-matrix` | parse/validate: sync `def`/gunicorn vs async `def`/uvicorn, incl. `adrf` |
+| `microbench_validate.py <fw>` | validation CPU only, no HTTP (pydantic vs DRF vs marshmallow), one framework per process |
 | `make_charts.py` | renders each chart as light + dark SVG (colors overridable: `--ninja/--flask/--drf/--adrf`) |
+
+### How to read these numbers
+
+- **Single worker per framework cell.** Every parse/validate and route cell runs the
+  server with **one worker** (`--workers 1` / `-w 1`), i.e. one OS process handling
+  requests serially. That's deliberate: it isolates *framework + validation* cost from
+  the server's process-pool scaling, so the cells are comparable. It is **not** a
+  "how many rps in production" number — real deployments run many workers. (The
+  concurrency panel is the exception: it sweeps the worker count on purpose.)
+- **Ratios, not absolutes.** The load generator (`oha`), the app server, and the
+  network service all share the same ~8 cores on one machine — they are not pinned or
+  isolated, so absolute rps is machine- and co-tenancy-dependent and will differ on
+  your hardware. The *relative* ordering between frameworks is the durable result.
+- **The network service is a fixed-latency stand-in.** `network_service.py` is a Sanic
+  app whose only work is `await asyncio.sleep(0.1)`. That models a slow upstream/I/O
+  call, but it also imposes a ceiling of ~10 req/s per in-flight connection — so in the
+  concurrency panel the saturation you see is the async/worker model meeting that
+  upstream floor, not a pure client-side limit.
 
 ### Findings (this machine, 2026-06-14, 8 cores)
 
@@ -76,6 +96,6 @@ DRF via `adrf`) for the route-style comparison below.
   this CPU-bound endpoint (async overhead with no I/O to overlap), for every framework.
   Ninja leads in both stacks; `adrf` is the slowest cell.
 
-Results are committed under `benchmark_results/` (`results_local.json/.csv`,
+Results are committed under `benchmark_results/` (`results_local.json`,
 `results_server_matrix.json`, `results_route_matrix.json`) so the numbers live somewhere
 reproducible, not just in a PNG.

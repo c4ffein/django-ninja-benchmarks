@@ -5,6 +5,5 @@ __pycache__/
 .git/
 ci-out/
 charts/
-img/
 Thumbs.db
 .DS_Store

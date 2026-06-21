@@ -4,12 +4,13 @@
     uv run python bench.py local          # original two panels: parse/validate (c=1) + concurrency sweep
     uv run python bench.py server-matrix  # parse/validate as framework x {uWSGI, uvicorn}  (server confound)
     uv run python bench.py route-matrix   # parse/validate as sync def/gunicorn vs async def/uvicorn (incl. adrf)
+    uv run python bench.py kill           # reap stray servers left by an interrupted run (scoped to bench ports/modules)
 
 Every subcommand writes the same benchmark_results/results_*.json that
 make_charts.py already reads, so the charts keep working unchanged.
 
 Not merged here on purpose: microbench_validate.py (validation CPU only, no HTTP,
-one framework per process) and run_test.py (the original 2020 Docker + ab suite).
+one framework per process).
 """
 import argparse
 import os
@@ -21,6 +22,9 @@ APP_PORT_DEFAULT = 8000
 NS_PORT_DEFAULT = 9000
 WORKERS_CASES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]   # concurrency-panel x-axis
 FRAMEWORK_NAMES = ("ninja", "flask", "drf")
+# cmdline fragments unique to this repo's servers -- used by `bench.py kill` to
+# reap strays without catching unrelated uvicorn/gunicorn processes on the box.
+BENCH_SIGNATURES = ("network_service.py", "djninja", "drf.wsgi", "drf.asgi", "main:app")
 
 # ---------------------------------------------------------------------------
 # matrices  (cmd templates: {port} filled by the harness, {w} filled here)
@@ -29,29 +33,29 @@ FRAMEWORK_NAMES = ("ninja", "flask", "drf")
 # concurrency panel: sync apps on uWSGI prefork, Ninja async on uvicorn (as the original)
 CONC_FRAMEWORKS = {
     "flask": ("uwsgi --http 127.0.0.1:{port} --module main:app --workers {w} --master --need-app --die-on-term",
-              "app_flask_marshmallow"),
+              "apps/app_flask_marshmallow"),
     "drf":   ("uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers {w} --master --need-app --die-on-term",
-              "app_drf"),
+              "apps/app_drf"),
     "ninja": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers {w} --log-level warning",
-              "app_ninja"),
+              "apps/app_ninja"),
 }
 # parse/validate panel: every framework on the SAME sync/WSGI server, so the number
 # reflects framework+validation overhead, not the server model (Ninja on uWSGI here too).
 C1_FRAMEWORKS = {
     "ninja": ("uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers {w} --master --need-app --die-on-term",
-              "app_ninja"),
+              "apps/app_ninja"),
     "flask": CONC_FRAMEWORKS["flask"],
     "drf":   CONC_FRAMEWORKS["drf"],
 }
 
 # parse/validate as framework x server
 SERVER_MATRIX = {
-    "ninja": {"sync":  ("uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers 1 --master --need-app --die-on-term", "app_ninja"),
-              "async": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "app_ninja")},
-    "flask": {"sync":  ("uwsgi --http 127.0.0.1:{port} --module main:app --workers 1 --master --need-app --die-on-term", "app_flask_marshmallow"),
-              "async": ("uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "app_flask_marshmallow")},
-    "drf":   {"sync":  ("uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers 1 --master --need-app --die-on-term", "app_drf"),
-              "async": ("uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "app_drf")},
+    "ninja": {"sync":  ("uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers 1 --master --need-app --die-on-term", "apps/app_ninja"),
+              "async": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_ninja")},
+    "flask": {"sync":  ("uwsgi --http 127.0.0.1:{port} --module main:app --workers 1 --master --need-app --die-on-term", "apps/app_flask_marshmallow"),
+              "async": ("uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_flask_marshmallow")},
+    "drf":   {"sync":  ("uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers 1 --master --need-app --die-on-term", "apps/app_drf"),
+              "async": ("uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_drf")},
 }
 
 # parse/validate as route-style: sync def/gunicorn vs async def/uvicorn (adrf = genuinely-async DRF cell)
@@ -59,17 +63,17 @@ ROUTE_GROUPS = {
     "sync (def / gunicorn WSGI)": {
         "endpoint": "/api/create",
         "frameworks": {
-            "ninja": ("gunicorn -w 1 -b 127.0.0.1:{port} djninja.wsgi:application", "app_ninja"),
-            "flask": ("gunicorn -w 1 -b 127.0.0.1:{port} main:app", "app_flask_marshmallow"),
-            "drf":   ("gunicorn -w 1 -b 127.0.0.1:{port} drf.wsgi:application", "app_drf"),
+            "ninja": ("gunicorn -w 1 -b 127.0.0.1:{port} djninja.wsgi:application", "apps/app_ninja"),
+            "flask": ("gunicorn -w 1 -b 127.0.0.1:{port} main:app", "apps/app_flask_marshmallow"),
+            "drf":   ("gunicorn -w 1 -b 127.0.0.1:{port} drf.wsgi:application", "apps/app_drf"),
         },
     },
     "async (async def / uvicorn ASGI)": {
         "endpoint": "/api/create_async",
         "frameworks": {
-            "ninja": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "app_ninja"),
-            "flask": ("uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "app_flask_marshmallow"),
-            "adrf":  ("uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "app_drf"),
+            "ninja": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_ninja"),
+            "flask": ("uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_flask_marshmallow"),
+            "adrf":  ("uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_drf"),
         },
     },
 }
@@ -189,6 +193,17 @@ def cmd_local(args):
     print(f"Saved -> {path}")
 
 
+def cmd_kill(args):
+    """Reap stray bench servers from an interrupted/crashed run (scoped to our ports/modules)."""
+    res = harness.kill_strays(ports=(args.app_port, args.ns_port), signatures=BENCH_SIGNATURES)
+    if not res["terminated"]:
+        print(f"no stray bench processes (ports {args.app_port}/{args.ns_port} clear, no bench modules running)")
+        return
+    print(f"reaped {len(res['terminated'])} stray bench process(es): {res['terminated']}")
+    if res["killed"]:
+        print(f"  needed SIGKILL after grace: {res['killed']}")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -223,8 +238,13 @@ def main():
     add_common(p_rm, duration_default=3.0)
     p_rm.set_defaults(func=cmd_route_matrix)
 
+    p_kill = sub.add_parser("kill", help="reap stray bench servers from an interrupted run")
+    p_kill.add_argument("--app-port", type=int, default=APP_PORT_DEFAULT)
+    p_kill.add_argument("--ns-port", type=int, default=NS_PORT_DEFAULT)
+    p_kill.set_defaults(func=cmd_kill)
+
     args = parser.parse_args()
-    if args.oha:
+    if getattr(args, "oha", None):
         harness.OHA = args.oha
     args.func(args)
 

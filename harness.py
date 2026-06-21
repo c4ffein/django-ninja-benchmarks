@@ -8,6 +8,7 @@ CPU in-process with no server/HTTP, so none of the plumbing below applies.
 """
 import json
 import os
+import signal
 import socket
 import subprocess
 import time
@@ -144,3 +145,103 @@ def save_results(name, obj, output_dir=None):
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
     return path
+
+
+# ---------------------------------------------------------------------------
+# stray-process cleanup  (recover from a hard-killed / crashed run, where the
+# Server/network_service context managers never got to terminate their child)
+# ---------------------------------------------------------------------------
+
+def _socket_inodes_on_ports(ports):
+    """Inodes of TCP sockets (v4+v6) whose local port is in `ports`."""
+    wanted, inodes = {int(p) for p in ports}, set()
+    for path in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            with open(path) as f:
+                next(f, None)  # header row
+                for line in f:
+                    parts = line.split()
+                    if len(parts) < 10:
+                        continue
+                    try:
+                        port = int(parts[1].rsplit(":", 1)[1], 16)
+                    except (ValueError, IndexError):
+                        continue
+                    if port in wanted:
+                        inodes.add(parts[9])
+        except OSError:
+            pass
+    return inodes
+
+
+def _pids_owning_inodes(inodes):
+    """PIDs holding an fd to any socket inode in `inodes` (catches worker children too)."""
+    pids = set()
+    if not inodes:
+        return pids
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        fddir = f"/proc/{pid}/fd"
+        try:
+            for fd in os.listdir(fddir):
+                try:
+                    link = os.readlink(os.path.join(fddir, fd))
+                except OSError:
+                    continue
+                if link.startswith("socket:[") and link[8:-1] in inodes:
+                    pids.add(int(pid))
+                    break
+        except OSError:
+            continue
+    return pids
+
+
+def _pids_matching(signatures):
+    """PIDs whose cmdline contains any of the bench-specific `signatures`."""
+    pids = set()
+    if not signatures:
+        return pids
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                cmd = f.read().replace(b"\x00", b" ").decode("utf-8", "replace")
+        except OSError:
+            continue
+        if any(sig in cmd for sig in signatures):
+            pids.add(int(pid))
+    return pids
+
+
+def kill_strays(ports=(), signatures=(), grace=2.0):
+    """Reap orphaned bench servers left behind by an interrupted / crashed run.
+
+    Deliberately scoped so it never touches unrelated servers: a PID is reaped
+    only if it owns a socket on one of `ports` (the bench's app / network-service
+    ports) OR its cmdline contains one of the bench-specific `signatures` (this
+    repo's app modules / network_service.py). SIGTERM, wait `grace`s, then
+    SIGKILL whatever is still alive. Returns {"terminated": [...], "killed": [...]}.
+    """
+    pids = _pids_owning_inodes(_socket_inodes_on_ports(ports)) | _pids_matching(signatures)
+    pids -= {os.getpid(), os.getppid()}
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    if pids:
+        time.sleep(grace)
+    killed = []
+    for pid in pids:
+        try:
+            os.kill(pid, 0)  # still alive?
+        except OSError:
+            continue
+        killed.append(pid)
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+    return {"terminated": sorted(pids), "killed": sorted(killed)}

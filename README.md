@@ -3,36 +3,23 @@
 ## Results (2026)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="charts/parse_validate-dark.svg">
-  <img alt="Parsing / validation JSON — concurrency 1, sync vs async" src="charts/parse_validate.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="charts/2026-06-14-parse_validate-dark.svg">
+  <img alt="Parsing / validation JSON — concurrency 1, sync vs async" src="charts/2026-06-14-parse_validate-light.svg">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="charts/concurrency-dark.svg">
-  <img alt="Calling a slow network operation — concurrency 50, worker sweep" src="charts/concurrency.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="charts/2026-06-14-concurrency-dark.svg">
+  <img alt="Calling a slow network operation — concurrency 50, worker sweep" src="charts/2026-06-14-concurrency-light.svg">
 </picture>
 
-<sub>Re-run on a modern 2026 stack (this fork) — see [2026 local run](#2026-local-run-no-docker-no-root) below. Original 2020 result: [img/results.png](img/results.png).</sub>
-
----
-
-### Original suite (2020, legacy)
-
-The original Docker + ApacheBench + uWSGI suite. Kept for provenance; for new runs
-prefer the native path in [2026 local run](#2026-local-run-no-docker-no-root) below.
-
-Requirements: Python3, Docker + docker-compose, `ab`.
-
-```
-python run_test.py
-```
+<sub>Re-run on a modern 2026 stack (this fork) — see [2026 local run](#2026-local-run-no-docker-no-root) below. Original 2020 result, for provenance: [charts/2020_results.png](charts/2020_results.png).</sub>
 
 ---
 
 ## 2026 local run (no Docker, no root)
 
-The original suite is Docker + `ab` + uWSGI on a 2020 stack. This branch adds a
-self-contained way to run it natively with [uv](https://docs.astral.sh/uv/), a modern
+The original suite was Docker + `ab` + uWSGI on a 2020 stack. This branch replaces it
+with a self-contained way to run natively with [uv](https://docs.astral.sh/uv/), a modern
 2026 stack, and [`oha`](https://github.com/hatoo/oha) instead of `ab` — no root needed
 (uv's managed Python ships headers, so even uWSGI compiles).
 
@@ -42,7 +29,7 @@ uv pip install -r requirements-local.txt
 cargo install oha            # or grab a prebuilt binary from the oha releases
 
 uv run python bench.py local # both panels -> benchmark_results/results_local.json
-uv run python make_charts.py # -> charts/{parse_validate,concurrency}{,-dark}.svg (light + dark)
+uv run python make_charts.py # -> charts/<run-date>-{parse_validate,concurrency}{,-dark}.svg + index.html
 ```
 
 What changed vs the original apps: the network-service URL is read from
@@ -64,6 +51,7 @@ that `make_charts.py` reads.
 | `bench.py route-matrix` | parse/validate: sync `def`/gunicorn vs async `def`/uvicorn, incl. `adrf` |
 | `microbench_validate.py <fw>` | validation CPU only, no HTTP (pydantic vs DRF vs marshmallow), one framework per process |
 | `make_charts.py` | renders each chart as light + dark SVG (colors overridable: `--ninja/--flask/--drf/--adrf`) |
+| `bench.py kill` | reaps stray servers left by an interrupted run — scoped to the bench ports/modules, won't touch other servers |
 
 ### How to read these numbers
 

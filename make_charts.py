@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 """Generate the SVG charts from the benchmark results. No dependencies.
 
-Each chart is rendered in both a light and a dark theme:
+Each chart is rendered in both a light and a dark theme, with the run date (from the
+results meta) prefixed onto every filename, e.g. for a 2026-06-14 run:
 
-  parse_validate.svg      / parse_validate-dark.svg : /api/create  @ concurrency=1
-  concurrency.svg         / concurrency-dark.svg    : /api/iojob   @ concurrency=50
+  <date>-parse_validate-light.svg / <date>-parse_validate-dark.svg : /api/create @ concurrency=1
+  <date>-concurrency-light.svg    / <date>-concurrency-dark.svg    : /api/iojob  @ concurrency=50
+
+index.html is regenerated to point at the just-written files.
 
 The default palette is monochrome (black / dark gray / light gray), inverted for
 the dark theme. Bar colors are overridable (applied to both themes):
@@ -198,15 +201,45 @@ def main():
     overrides = {k: v for k, v in vars(a).items() if v}  # applied to both themes
 
     os.makedirs(OUT, exist_ok=True)
+    # Prefix every output with the run date so successive runs don't overwrite each
+    # other and the filename says when the data is from. Taken from the local-panel
+    # results meta (the run that produced both panels).
+    rl_meta = json.load(open(os.path.join(BASE, "benchmark_results", "results_local.json"))).get("meta", {})
+    date = rl_meta.get("date", "undated")
     charts = (("parse_validate", chart_parse_validate), ("concurrency", chart_concurrency))
+    written = []
     for theme_name, base_theme in THEMES.items():
         theme = {**base_theme, "bars": {**base_theme["bars"], **overrides}}
-        suffix = "" if theme_name == "light" else "-dark"
+        suffix = "-light" if theme_name == "light" else "-dark"
         for base, fn in charts:
-            name = f"{base}{suffix}.svg"
+            name = f"{date}-{base}{suffix}.svg"
             with open(os.path.join(OUT, name), "w") as f:
                 f.write(fn(theme))
+            written.append(name)
             print(f"wrote charts/{name}")
+    # Regenerate index.html so it always points at the just-written (date-prefixed) files.
+    with open(os.path.join(OUT, "index.html"), "w") as f:
+        f.write(index_html(date))
+    print("wrote charts/index.html")
+
+
+def index_html(date):
+    def card(bg, src):
+        return f'  <div style="background:{bg};padding:8px;border-radius:8px"><img src="{src}"></div>'
+    return (
+        "<!doctype html><meta charset=utf-8>"
+        f"<title>django-ninja-benchmarks {date} charts</title>\n"
+        '<body style="font-family:sans-serif;margin:24px;background:#fafafa">\n'
+        f"<h2>django-ninja-benchmarks — {date} charts</h2>\n"
+        "<p>Parse/validate (sync vs async) and concurrency (worker sweep) — light + dark.</p>\n"
+        '<div style="display:flex;flex-wrap:wrap;gap:16px">\n'
+        f'{card("#fff", f"{date}-parse_validate-light.svg")}\n'
+        f'{card("#0d1117", f"{date}-parse_validate-dark.svg")}\n'
+        "</div>\n<hr>\n"
+        '<div style="display:flex;flex-wrap:wrap;gap:16px">\n'
+        f'{card("#fff", f"{date}-concurrency-light.svg")}\n'
+        f'{card("#0d1117", f"{date}-concurrency-dark.svg")}\n'
+        "</div>\n</body>\n")
 
 
 if __name__ == "__main__":

@@ -18,14 +18,14 @@ payload = json.load(open(os.path.join(BASE, "payload.json")))
 sys.path.insert(0, BASE)
 
 if fw == "ninja":
-    sys.path.insert(0, os.path.join(BASE, "app_ninja"))
+    sys.path.insert(0, os.path.join(BASE, "apps", "app_ninja"))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "djninja.settings")
     import django; django.setup()
     from djninja.api import Model  # ninja.Schema == pydantic v2 BaseModel
     run = lambda: Model.model_validate(payload)
 
 elif fw == "drf":
-    sys.path.insert(0, os.path.join(BASE, "app_drf"))
+    sys.path.insert(0, os.path.join(BASE, "apps", "app_drf"))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "drf.settings")
     import django; django.setup()
     from drf.views import Model
@@ -35,7 +35,7 @@ elif fw == "drf":
         return s.validated_data
 
 elif fw == "marshmallow":
-    sys.path.insert(0, os.path.join(BASE, "app_flask_marshmallow"))
+    sys.path.insert(0, os.path.join(BASE, "apps", "app_flask_marshmallow"))
     from main import model_schema
     run = lambda: model_schema.load(payload)
 

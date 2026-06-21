@@ -18,7 +18,7 @@ things that are noisy or close.
     * absolute rps drifting outside a wide band around the committed baseline
 
 Usage:
-    python check_results.py --dir benchmark_results [--baseline-dir benchmark_results]
+    python tools_check.py --dir benchmark_results [--baseline-dir benchmark_results]
 """
 import argparse
 import json

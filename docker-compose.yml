@@ -1,14 +1,14 @@
-# Modernized: one self-contained image; bench.py runs the servers + load gen inside it.
+# Modernized: one self-contained image; cli.py runs the servers + load gen inside it.
 # (The original per-framework services existed for the 2020 run_test.py + host-side `ab`
-#  orchestration; that flow is superseded by bench.py and kept only in git history.)
+#  orchestration; that flow is superseded by cli.py/tools_bench.py and kept only in git history.)
 #
 #   docker compose build
-#   docker compose run --rm bench bench.py server-matrix
-#   docker compose run --rm bench bench.py route-matrix
-#   docker compose run --rm bench microbench_validate.py ninja
+#   docker compose run --rm bench cli.py bench server-matrix
+#   docker compose run --rm bench cli.py bench route-matrix
+#   docker compose run --rm bench cli.py microbench ninja
 services:
   bench:
     build: .
     volumes:
       - ./ci-out:/out
-    command: ["bench.py", "server-matrix", "--output-dir", "/out"]
+    command: ["cli.py", "bench", "server-matrix", "--output-dir", "/out"]

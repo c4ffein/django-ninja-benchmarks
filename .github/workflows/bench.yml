@@ -1,7 +1,7 @@
 name: benchmark
 
 # Builds the dockerized benchmark and gates on structural invariants (NOT absolute
-# rps -- GitHub runners are too noisy for that). See check_results.py for the gates.
+# rps -- GitHub runners are too noisy for that). See tools_check.py for the gates.
 on:
   push:
     branches: [master]
@@ -31,26 +31,26 @@ jobs:
       - name: Microbench (validation CPU)
         run: |
           for fw in ninja drf marshmallow; do
-            docker run --rm djnb microbench_validate.py "$fw"
+            docker run --rm djnb cli.py microbench "$fw"
           done | tee ci-out/results_microbench.jsonl
 
       - name: Server matrix (short)
-        run: docker run --rm -v "$PWD/ci-out:/out" djnb bench.py server-matrix --duration 2 --output-dir /out
+        run: docker run --rm -v "$PWD/ci-out:/out" djnb cli.py bench server-matrix --duration 2 --output-dir /out
 
       - name: Route matrix (short)
-        run: docker run --rm -v "$PWD/ci-out:/out" djnb bench.py route-matrix --duration 2 --output-dir /out
+        run: docker run --rm -v "$PWD/ci-out:/out" djnb cli.py bench route-matrix --duration 2 --output-dir /out
 
       # Opt-in only: the concurrency sweep is 13 worker cases x 3 frameworks, minutes long and noisy.
       - name: Local panels (optional, long)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_local_panel }}
-        run: docker run --rm -v "$PWD/ci-out:/out" djnb bench.py local --duration 3 --duration-c1 2 --output-dir /out
+        run: docker run --rm -v "$PWD/ci-out:/out" djnb cli.py bench local --duration 3 --duration-c1 2 --output-dir /out
 
       - name: Gate results against invariants
         run: |
           docker run --rm \
             -v "$PWD/ci-out:/out" \
             -v "$PWD/benchmark_results:/baseline" \
-            djnb check_results.py --dir /out --baseline-dir /baseline
+            djnb cli.py check --dir /out --baseline-dir /baseline
 
       - name: Upload fresh results
         if: always()

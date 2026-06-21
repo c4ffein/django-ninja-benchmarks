@@ -25,28 +25,30 @@ with a self-contained way to run natively with [uv](https://docs.astral.sh/uv/),
 
 ```bash
 uv venv --python-preference only-managed --python 3.14
-uv pip install -r requirements-local.txt
-cargo install oha            # or grab a prebuilt binary from the oha releases
+uv pip install -r pyproject.toml   # single source of truth for the stack (uv.lock pins transitives)
+cargo install oha                  # or grab a prebuilt binary from the oha releases
 
-uv run python bench.py local # both panels -> benchmark_results/results_local.json
-uv run python make_charts.py # -> charts/<run-date>-{parse_validate,concurrency}{,-dark}.svg + index.html
+uv run python cli.py bench local   # both panels -> benchmark_results/results_local.json
+uv run python cli.py charts        # -> charts/<run-date>-{parse_validate,concurrency}{,-dark}.svg + index.html
 ```
 
 ### Runners / experiments
 
-The three HTTP experiments live behind one CLI, `bench.py` (shared lifecycle/load
-plumbing in `harness.py`); `microbench_validate.py` stays separate because it runs
-in-process with no server. Every runner writes a `benchmark_results/results_*.json`
-that `make_charts.py` reads.
+`cli.py` is the single front door — run `cli.py --help` to see every tool. It's a
+thin pass-through to the standalone scripts (which still run on their own), so the
+three HTTP experiments share `tools_bench.py`'s lifecycle/load plumbing in `harness.py`,
+while `microbench` stays in-process with no server (one framework per process).
+Every runner writes a `benchmark_results/results_*.json` that `cli.py charts` reads.
 
 | command | what it measures |
 |---|---|
-| `bench.py local` | both original panels, native (sync apps on uWSGI, Ninja async on uvicorn) |
-| `bench.py server-matrix` | parse/validate per framework x {uWSGI, uvicorn} — the server confound |
-| `bench.py route-matrix` | parse/validate: sync `def`/gunicorn vs async `def`/uvicorn, incl. `adrf` |
-| `microbench_validate.py <fw>` | validation CPU only, no HTTP (pydantic vs DRF vs marshmallow), one framework per process |
-| `make_charts.py` | renders each chart as light + dark SVG (colors overridable: `--ninja/--flask/--drf/--adrf`) |
-| `bench.py kill` | reaps stray servers left by an interrupted run — scoped to the bench ports/modules, won't touch other servers |
+| `cli.py bench local` | both original panels, native (sync apps on uWSGI, Ninja async on uvicorn) |
+| `cli.py bench server-matrix` | parse/validate per framework x {uWSGI, uvicorn} — the server confound |
+| `cli.py bench route-matrix` | parse/validate: sync `def`/gunicorn vs async `def`/uvicorn, incl. `adrf` |
+| `cli.py microbench <fw>` | validation CPU only, no HTTP (pydantic vs DRF vs marshmallow), one framework per process |
+| `cli.py charts` | renders each chart as light + dark SVG (colors overridable: `--ninja/--flask/--drf/--adrf`) |
+| `cli.py check --dir DIR` | gate results_*.json against structural invariants (the CI regression gate) |
+| `cli.py bench kill` | reaps stray servers left by an interrupted run — scoped to the bench ports/modules, won't touch other servers |
 
 ### How to read these numbers
 

@@ -1,9 +1,9 @@
 """Shared benchmark harness: process lifecycle, load generation, aggregation.
 
-Used by bench.py (local / server-matrix / route-matrix experiments). Everything
+Used by tools_bench.py (local / server-matrix / route-matrix experiments). Everything
 that used to be copy-pasted across the three runner scripts lives here once.
 
-microbench_validate.py deliberately does NOT use this: it measures validation
+tools_microbench.py deliberately does NOT use this: it measures validation
 CPU in-process with no server/HTTP, so none of the plumbing below applies.
 """
 import json
@@ -17,7 +17,7 @@ from contextlib import contextmanager
 BASE = os.path.dirname(os.path.abspath(__file__))
 # Overridable so the same harness runs under a local uv venv and inside Docker.
 VENV = os.environ.get("BENCH_VENV_BIN") or os.path.join(BASE, ".venv", "bin")
-OHA = os.environ.get("BENCH_OHA") or os.path.expanduser("~/.local/bin/oha")  # or bench.py --oha
+OHA = os.environ.get("BENCH_OHA") or os.path.expanduser("~/.local/bin/oha")  # or tools_bench.py --oha
 
 
 def env_for(ns_port):

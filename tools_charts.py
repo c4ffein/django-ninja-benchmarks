@@ -11,7 +11,7 @@ index.html is regenerated to point at the just-written files.
 
 The default palette is monochrome (black / dark gray / light gray), inverted for
 the dark theme. Bar colors are overridable (applied to both themes):
-  python make_charts.py --ninja '#111111' --flask '#4285F4' --drf '#34A853' --adrf '#1E8E3E'
+  python tools_charts.py --ninja '#111111' --flask '#4285F4' --drf '#34A853' --adrf '#1E8E3E'
 """
 import argparse
 import json
@@ -177,7 +177,7 @@ def chart_concurrency(theme):
     series = ["ninja", "flask", "drf"]
     values = {str(w): {fw: conc[fw][str(w)]["rps"] for fw in series} for w in workers}
     glabels = {g: [g] for g in groups}
-    # Concurrency panel server stack (bench.py local): Ninja async on uvicorn,
+    # Concurrency panel server stack (tools_bench.py local): Ninja async on uvicorn,
     # sync Flask/DRF on uWSGI prefork (one request per worker).
     legend = {
         "ninja": "Django Ninja — uvicorn (async)",

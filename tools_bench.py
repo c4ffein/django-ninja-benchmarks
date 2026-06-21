@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 """Unified benchmark CLI — the three HTTP experiments behind one set of subcommands.
 
-    uv run python bench.py local          # original two panels: parse/validate (c=1) + concurrency sweep
-    uv run python bench.py server-matrix  # parse/validate as framework x {uWSGI, uvicorn}  (server confound)
-    uv run python bench.py route-matrix   # parse/validate as sync def/gunicorn vs async def/uvicorn (incl. adrf)
-    uv run python bench.py kill           # reap stray servers left by an interrupted run (scoped to bench ports/modules)
+    uv run python tools_bench.py local          # original two panels: parse/validate (c=1) + concurrency sweep
+    uv run python tools_bench.py server-matrix  # parse/validate as framework x {uWSGI, uvicorn}  (server confound)
+    uv run python tools_bench.py route-matrix   # parse/validate as sync def/gunicorn vs async def/uvicorn (incl. adrf)
+    uv run python tools_bench.py kill           # reap stray servers left by an interrupted run (scoped to bench ports/modules)
 
 Every subcommand writes the same benchmark_results/results_*.json that
-make_charts.py already reads, so the charts keep working unchanged.
+tools_charts.py already reads, so the charts keep working unchanged.
 
-Not merged here on purpose: microbench_validate.py (validation CPU only, no HTTP,
+Not merged here on purpose: tools_microbench.py (validation CPU only, no HTTP,
 one framework per process).
 """
 import argparse
@@ -22,7 +22,7 @@ APP_PORT_DEFAULT = 8000
 NS_PORT_DEFAULT = 9000
 WORKERS_CASES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]   # concurrency-panel x-axis
 FRAMEWORK_NAMES = ("ninja", "flask", "drf")
-# cmdline fragments unique to this repo's servers -- used by `bench.py kill` to
+# cmdline fragments unique to this repo's servers -- used by `tools_bench.py kill` to
 # reap strays without catching unrelated uvicorn/gunicorn processes on the box.
 BENCH_SIGNATURES = ("network_service.py", "djninja", "drf.wsgi", "drf.asgi", "main:app")
 

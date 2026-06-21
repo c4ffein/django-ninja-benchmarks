@@ -2,9 +2,9 @@
 
 Runs the *actual* schema from each app against payload.json, N times, in-process.
 Run one framework per process (Django settings can only be configured once):
-    python microbench_validate.py ninja
-    python microbench_validate.py drf
-    python microbench_validate.py marshmallow
+    python tools_microbench.py ninja
+    python tools_microbench.py drf
+    python tools_microbench.py marshmallow
 """
 import json
 import os

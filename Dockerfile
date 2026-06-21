@@ -1,6 +1,6 @@
 # Self-contained benchmark image: app code + 2026 deps (uv) + oha load generator.
-# bench.py orchestrates everything on 127.0.0.1 inside the container, so a single
-# `docker run djnb bench.py server-matrix` spins the app servers, the network
+# cli.py orchestrates everything on 127.0.0.1 inside the container, so a single
+# `docker run djnb cli.py bench server-matrix` spins the app servers, the network
 # service, and the load run with no host-side docker-compose choreography.
 FROM python:3.13-slim-bookworm
 
@@ -34,7 +34,7 @@ RUN uv venv /app/.venv \
 # Then the code.
 COPY . .
 
-# Default entrypoint is the venv python, so: `docker run djnb bench.py server-matrix`
-# or `docker run djnb microbench_validate.py ninja`.
+# Default entrypoint is the venv python, so: `docker run djnb cli.py bench server-matrix`
+# or `docker run djnb cli.py microbench ninja` (cli.py --help lists every tool).
 ENTRYPOINT ["/app/.venv/bin/python"]
-CMD ["bench.py", "server-matrix"]
+CMD ["cli.py", "bench", "server-matrix"]

@@ -26,11 +26,25 @@ with a self-contained way to run natively with [uv](https://docs.astral.sh/uv/),
 ```bash
 uv venv --python-preference only-managed --python 3.14
 uv pip install -r pyproject.toml   # single source of truth for the stack (uv.lock pins transitives)
-cargo install oha                  # or grab a prebuilt binary from the oha releases
+
+# oha load generator -- pinned to the SAME version as the Dockerfile (OHA_VERSION) so
+# local runs == CI. `cargo install oha` is intentionally avoided: it pulls *latest*,
+# which silently drifts from the pin (oha's JSON flags changed across minor versions).
+# The v1.14.0 release ships no checksums file, so the SHA256s below were computed from the
+# assets (amd64 matches the binary the committed results were generated with). Pick your arch:
+curl -L https://github.com/hatoo/oha/releases/download/v1.14.0/oha-linux-amd64 -o ~/.local/bin/oha
+echo "6fc16b5f9901fd2266b1a2b49b1689f76f91ddc7c96f2d0d08b161a870f7ef18  $HOME/.local/bin/oha" | sha256sum -c -
+chmod +x ~/.local/bin/oha
+# arm64: oha-linux-arm64  ->  e0497f3304b18350f4e64de557372fd48e06768c970abaa7904c0a590670221a
 
 uv run python cli.py bench local   # both panels -> benchmark_results/results_local.json
 uv run python cli.py charts        # -> charts/<run-date>-{parse_validate,concurrency}{,-dark}.svg + index.html
 ```
+
+`harness.py` pins the expected oha version (`OHA_VERSION`) and refuses to run if the
+resolved binary's minor version differs, so a drifting `oha` fails loudly with a clear
+message instead of a cryptic parse error. Keep `harness.OHA_VERSION` and the Dockerfile's
+`OHA_VERSION` arg in lockstep; override the binary path with `BENCH_OHA=/path/to/oha`.
 
 Lint/format are ruff (config in `pyproject.toml`, enforced by the `lint` CI workflow):
 

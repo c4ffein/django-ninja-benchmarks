@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Self-contained benchmark image: app code + 2026 deps (uv) + oha load generator.
 # cli.py orchestrates everything on 127.0.0.1 inside the container, so a single
 # `docker run djnb cli.py bench server-matrix` spins the app servers, the network
@@ -19,8 +20,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # oha prebuilt binary (Rust). Bump OHA_VERSION as needed; asset name is from the
 # hatoo/oha releases page (verify on first build).
-ARG OHA_VERSION=v1.4.5
-ADD https://github.com/hatoo/oha/releases/download/${OHA_VERSION}/oha-linux-amd64 /usr/local/bin/oha
+ARG OHA_VERSION=v1.14.0
+# --checksum verifies the download (BuildKit, Dockerfile frontend 1.4+). amd64-specific hash;
+# keep in lockstep with the SHA256 in the README and OHA_VERSION above. Image is amd64-only.
+ADD --checksum=sha256:6fc16b5f9901fd2266b1a2b49b1689f76f91ddc7c96f2d0d08b161a870f7ef18 \
+    https://github.com/hatoo/oha/releases/download/${OHA_VERSION}/oha-linux-amd64 /usr/local/bin/oha
 RUN chmod +x /usr/local/bin/oha
 
 WORKDIR /app

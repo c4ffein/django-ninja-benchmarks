@@ -19,6 +19,25 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 # Overridable so the same harness runs under a local uv venv and inside Docker.
 VENV = os.environ.get("BENCH_VENV_BIN") or os.path.join(BASE, ".venv", "bin")
 OHA = os.environ.get("BENCH_OHA") or os.path.expanduser("~/.local/bin/oha")  # or tools_bench.py --oha
+# oha's JSON output flags changed across releases (1.4 used `-j`; 1.14 uses `--output-format json`),
+# so a drifting binary silently breaks parsing. Keep this in lockstep with Dockerfile's OHA_VERSION arg.
+OHA_VERSION = "1.14.0"
+_oha_version_checked = set()
+
+
+def check_oha_version(oha_bin):
+    """Fail loudly if the resolved oha's minor version differs from the pin (cached per binary)."""
+    if oha_bin in _oha_version_checked:
+        return
+    p = subprocess.run([oha_bin, "--version"], capture_output=True, text=True)
+    got = p.stdout.strip().split()[-1] if p.stdout else "?"
+    if got.split(".")[:2] != OHA_VERSION.split(".")[:2]:
+        raise RuntimeError(
+            f"oha version mismatch: {oha_bin} reports {got!r}, expected {OHA_VERSION!r} "
+            f"(its JSON flags differ across minor versions, so parsing would break). "
+            f"Install the pinned build or point BENCH_OHA at it -- see README."
+        )
+    _oha_version_checked.add(oha_bin)
 
 
 def env_for(ns_port):
@@ -107,6 +126,7 @@ def network_service(ns_port, env):
 
 def oha(url, concurrency, duration, payload=None, oha_bin=None):
     """Run one oha load sample, return {rps, p50(ms), p99(ms), ok}."""
+    check_oha_version(oha_bin or OHA)
     cmd = [
         oha_bin or OHA,
         "-z",
@@ -121,7 +141,10 @@ def oha(url, concurrency, duration, payload=None, oha_bin=None):
     if payload:
         cmd += ["-m", "POST", "-D", os.path.join(BASE, payload), "-T", "application/json"]
     cmd += [url]
-    d = json.loads(subprocess.run(cmd, capture_output=True, text=True).stdout)
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode != 0 or not p.stdout:
+        raise RuntimeError(f"oha exited {p.returncode} for {url}\ncmd: {' '.join(cmd)}\nstderr: {p.stderr.strip()}")
+    d = json.loads(p.stdout)
     return {
         "rps": round(d["summary"]["requestsPerSec"], 1),
         "p50": round(d["latencyPercentiles"]["p50"] * 1000, 1),

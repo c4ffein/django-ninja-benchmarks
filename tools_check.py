@@ -20,6 +20,7 @@ things that are noisy or close.
 Usage:
     python tools_check.py --dir benchmark_results [--baseline-dir benchmark_results]
 """
+
 import argparse
 import json
 import os
@@ -84,8 +85,11 @@ def check_server_matrix(c, d):
     if "drf" in sync:
         c.gate(sync["drf"] == min(sync.values()), f"drf is slowest sync framework ({sync})")
     if "ninja" in sync and "flask" in sync:
-        c.gate(sync["ninja"] >= sync["flask"],
-               f"ninja >= flask (sync, close call) ({sync['ninja']} vs {sync['flask']})", warn=True)
+        c.gate(
+            sync["ninja"] >= sync["flask"],
+            f"ninja >= flask (sync, close call) ({sync['ninja']} vs {sync['flask']})",
+            warn=True,
+        )
 
 
 def check_route_matrix(c, d):
@@ -114,8 +118,7 @@ def check_local(c, d):
     for fw, cell in c1.items():
         c.gate(cell["rps"] > 0, f"c1 {fw}: rps > 0 ({cell['rps']})")
     if {"ninja", "drf"} <= set(c1):
-        c.gate(c1["ninja"]["rps"] > c1["drf"]["rps"],
-               f"c1: ninja > drf ({c1['ninja']['rps']} vs {c1['drf']['rps']})")
+        c.gate(c1["ninja"]["rps"] > c1["drf"]["rps"], f"c1: ninja > drf ({c1['ninja']['rps']} vs {c1['drf']['rps']})")
     conc = d.get("concurrent", {})
     workers = d.get("workers_cases", [])
     for fw, byw in conc.items():
@@ -128,8 +131,10 @@ def check_local(c, d):
             nj = conc["ninja"][w_lo]["rps"]
             for fw in ("flask", "drf"):
                 if fw in conc and w_lo in conc[fw]:
-                    c.gate(nj > conc[fw][w_lo]["rps"],
-                           f"conc w={w_lo}: ninja async ({nj}) > {fw} 1-worker ({conc[fw][w_lo]['rps']})")
+                    c.gate(
+                        nj > conc[fw][w_lo]["rps"],
+                        f"conc w={w_lo}: ninja async ({nj}) > {fw} 1-worker ({conc[fw][w_lo]['rps']})",
+                    )
         for fw in ("flask", "drf"):
             if fw in conc and w_lo in conc[fw] and w_hi in conc[fw]:
                 lo, hi = conc[fw][w_lo]["rps"], conc[fw][w_hi]["rps"]
@@ -143,12 +148,9 @@ def check_microbench(c, rows):
         c.gate(v > 0, f"{fw}: us_per_op > 0 ({v})")
     if {"ninja", "marshmallow", "drf"} <= set(us):
         pyd, marsh, drf = us["ninja"], us["marshmallow"], us["drf"]
-        c.gate(pyd < marsh < drf,
-               f"ordering pydantic < marshmallow < DRF ({pyd} < {marsh} < {drf})")
-        c.gate(2.0 <= marsh / pyd <= 8.0,
-               f"marshmallow/pydantic in [2,8] ({marsh / pyd:.1f}x)", warn=True)
-        c.gate(8.0 <= drf / pyd <= 50.0,
-               f"DRF/pydantic in [8,50] ({drf / pyd:.1f}x)")
+        c.gate(pyd < marsh < drf, f"ordering pydantic < marshmallow < DRF ({pyd} < {marsh} < {drf})")
+        c.gate(2.0 <= marsh / pyd <= 8.0, f"marshmallow/pydantic in [2,8] ({marsh / pyd:.1f}x)", warn=True)
+        c.gate(8.0 <= drf / pyd <= 50.0, f"DRF/pydantic in [8,50] ({drf / pyd:.1f}x)")
 
 
 def check_drift(c, fresh, baseline):
@@ -156,7 +158,10 @@ def check_drift(c, fresh, baseline):
     if not (fresh and baseline):
         return
     c.section("drift vs committed baseline (wide band, warnings only)")
-    flat = lambda d: {f"{fw}/{srv}": v for fw, cells in d.items() for srv, v in cells.items()}
+
+    def flat(d):
+        return {f"{fw}/{srv}": v for fw, cells in d.items() for srv, v in cells.items()}
+
     fr, ba = flat(fresh), flat(baseline)
     for k, v in fr.items():
         if k in ba and ba[k] > 0:

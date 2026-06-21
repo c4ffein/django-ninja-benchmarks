@@ -14,6 +14,7 @@ makes the whole workflow discoverable from one place (`cli.py --help`).
 
 Each tool forwards --help, so e.g. `cli.py bench --help` shows bench's own usage.
 """
+
 import os
 import runpy
 import sys
@@ -22,11 +23,11 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 # tool name -> (script filename, one-line help)
 TOOLS = {
-    "bench":      ("tools_bench.py", "HTTP experiments: local / server-matrix / route-matrix / kill"),
+    "bench": ("tools_bench.py", "HTTP experiments: local / server-matrix / route-matrix / kill"),
     "microbench": ("tools_microbench.py", "validation CPU only, no HTTP (one framework per process)"),
-    "charts":     ("tools_charts.py", "render the parse/validate + concurrency SVG charts"),
-    "check":      ("tools_check.py", "gate results_*.json against structural invariants"),
-    "netsvc":     ("tools_network_service.py", "the rig's fixed-latency fake upstream (bench auto-starts it)"),
+    "charts": ("tools_charts.py", "render the parse/validate + concurrency SVG charts"),
+    "check": ("tools_check.py", "gate results_*.json against structural invariants"),
+    "netsvc": ("tools_network_service.py", "the rig's fixed-latency fake upstream (bench auto-starts it)"),
 }
 
 

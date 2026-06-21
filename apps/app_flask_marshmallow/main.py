@@ -1,9 +1,10 @@
 import os
+
 import requests
 from flask import Flask, request
 from marshmallow import Schema, fields, validate
 
-NETWORK_SERVICE_URL = os.environ.get('NETWORK_SERVICE_URL', 'http://network_service:8000/job')
+NETWORK_SERVICE_URL = os.environ.get("NETWORK_SERVICE_URL", "http://network_service:8000/job")
 
 
 app = Flask(__name__)
@@ -45,14 +46,14 @@ model_schema = Model()
 @app.route("/api/create", methods=["POST"])
 def create():
     json_data = request.get_json()
-    data = model_schema.load(json_data)
+    model_schema.load(json_data)  # validates (raises on invalid); result intentionally unused
     return {"success": True}, 201
 
 
 @app.route("/api/create_async", methods=["POST"])
 async def create_async():
     json_data = request.get_json()
-    data = model_schema.load(json_data)
+    model_schema.load(json_data)  # validates (raises on invalid); result intentionally unused
     return {"success": True}, 201
 
 

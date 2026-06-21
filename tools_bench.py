@@ -12,6 +12,7 @@ tools_charts.py already reads, so the charts keep working unchanged.
 Not merged here on purpose: tools_microbench.py (validation CPU only, no HTTP,
 one framework per process).
 """
+
 import argparse
 import os
 
@@ -20,7 +21,7 @@ from harness import Server, aggregate, env_for, network_service, oha, save_resul
 
 APP_PORT_DEFAULT = 8000
 NS_PORT_DEFAULT = 9000
-WORKERS_CASES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]   # concurrency-panel x-axis
+WORKERS_CASES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]  # concurrency-panel x-axis
 FRAMEWORK_NAMES = ("ninja", "flask", "drf")
 # cmdline fragments unique to this repo's servers -- used by `tools_bench.py kill` to
 # reap strays without catching unrelated uvicorn/gunicorn processes on the box.
@@ -32,30 +33,62 @@ BENCH_SIGNATURES = ("tools_network_service.py", "djninja", "drf.wsgi", "drf.asgi
 
 # concurrency panel: sync apps on uWSGI prefork, Ninja async on uvicorn (as the original)
 CONC_FRAMEWORKS = {
-    "flask": ("uwsgi --http 127.0.0.1:{port} --module main:app --workers {w} --master --need-app --die-on-term",
-              "apps/app_flask_marshmallow"),
-    "drf":   ("uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers {w} --master --need-app --die-on-term",
-              "apps/app_drf"),
-    "ninja": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers {w} --log-level warning",
-              "apps/app_ninja"),
+    "flask": (
+        "uwsgi --http 127.0.0.1:{port} --module main:app --workers {w} --master --need-app --die-on-term",
+        "apps/app_flask_marshmallow",
+    ),
+    "drf": (
+        "uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers {w} --master --need-app --die-on-term",
+        "apps/app_drf",
+    ),
+    "ninja": (
+        "uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers {w} --log-level warning",
+        "apps/app_ninja",
+    ),
 }
 # parse/validate panel: every framework on the SAME sync/WSGI server, so the number
 # reflects framework+validation overhead, not the server model (Ninja on uWSGI here too).
 C1_FRAMEWORKS = {
-    "ninja": ("uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers {w} --master --need-app --die-on-term",
-              "apps/app_ninja"),
+    "ninja": (
+        "uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers {w} --master --need-app --die-on-term",
+        "apps/app_ninja",
+    ),
     "flask": CONC_FRAMEWORKS["flask"],
-    "drf":   CONC_FRAMEWORKS["drf"],
+    "drf": CONC_FRAMEWORKS["drf"],
 }
 
 # parse/validate as framework x server
 SERVER_MATRIX = {
-    "ninja": {"sync":  ("uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers 1 --master --need-app --die-on-term", "apps/app_ninja"),
-              "async": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_ninja")},
-    "flask": {"sync":  ("uwsgi --http 127.0.0.1:{port} --module main:app --workers 1 --master --need-app --die-on-term", "apps/app_flask_marshmallow"),
-              "async": ("uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_flask_marshmallow")},
-    "drf":   {"sync":  ("uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers 1 --master --need-app --die-on-term", "apps/app_drf"),
-              "async": ("uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_drf")},
+    "ninja": {
+        "sync": (
+            "uwsgi --http 127.0.0.1:{port} --module djninja.wsgi:application --workers 1 --master --need-app --die-on-term",
+            "apps/app_ninja",
+        ),
+        "async": (
+            "uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning",
+            "apps/app_ninja",
+        ),
+    },
+    "flask": {
+        "sync": (
+            "uwsgi --http 127.0.0.1:{port} --module main:app --workers 1 --master --need-app --die-on-term",
+            "apps/app_flask_marshmallow",
+        ),
+        "async": (
+            "uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning",
+            "apps/app_flask_marshmallow",
+        ),
+    },
+    "drf": {
+        "sync": (
+            "uwsgi --http 127.0.0.1:{port} --module drf.wsgi:application --workers 1 --master --need-app --die-on-term",
+            "apps/app_drf",
+        ),
+        "async": (
+            "uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning",
+            "apps/app_drf",
+        ),
+    },
 }
 
 # parse/validate as route-style: sync def/gunicorn vs async def/uvicorn (adrf = genuinely-async DRF cell)
@@ -65,15 +98,24 @@ ROUTE_GROUPS = {
         "frameworks": {
             "ninja": ("gunicorn -w 1 -b 127.0.0.1:{port} djninja.wsgi:application", "apps/app_ninja"),
             "flask": ("gunicorn -w 1 -b 127.0.0.1:{port} main:app", "apps/app_flask_marshmallow"),
-            "drf":   ("gunicorn -w 1 -b 127.0.0.1:{port} drf.wsgi:application", "apps/app_drf"),
+            "drf": ("gunicorn -w 1 -b 127.0.0.1:{port} drf.wsgi:application", "apps/app_drf"),
         },
     },
     "async (async def / uvicorn ASGI)": {
         "endpoint": "/api/create_async",
         "frameworks": {
-            "ninja": ("uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_ninja"),
-            "flask": ("uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_flask_marshmallow"),
-            "adrf":  ("uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning", "apps/app_drf"),
+            "ninja": (
+                "uvicorn djninja.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning",
+                "apps/app_ninja",
+            ),
+            "flask": (
+                "uvicorn asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning",
+                "apps/app_flask_marshmallow",
+            ),
+            "adrf": (
+                "uvicorn drf.asgi:application --host 127.0.0.1 --port {port} --workers 1 --log-level warning",
+                "apps/app_drf",
+            ),
         },
     },
 }
@@ -87,6 +129,7 @@ def app_url(port, endpoint):
 # subcommands
 # ---------------------------------------------------------------------------
 
+
 def cmd_server_matrix(args):
     """Parse/validate at c=1 for every (framework, server) cell -> is the ranking server-independent?"""
     env = env_for(args.ns_port)
@@ -98,7 +141,7 @@ def cmd_server_matrix(args):
             for server in ("sync", "async"):
                 tmpl, cwd = SERVER_MATRIX[fw][server]
                 with Server(tmpl, cwd, app_port=args.app_port, env=env):
-                    oha(url, 1, args.duration, "payload.json")              # warm
+                    oha(url, 1, args.duration, "payload.json")  # warm
                     results[fw][server] = oha(url, 1, args.duration, "payload.json")["rps"]
                 label = "uWSGI" if server == "sync" else "uvicorn"
                 print(f"  {fw:6} {server:5} ({label}) -> {results[fw][server]:>8} rps", flush=True)
@@ -120,7 +163,7 @@ def cmd_route_matrix(args):
                 tmpl, cwd = ROUTE_GROUPS[g]["frameworks"][fw]
                 url = app_url(args.app_port, ROUTE_GROUPS[g]["endpoint"])
                 with Server(tmpl, cwd, app_port=args.app_port, env=env):
-                    oha(url, 1, args.duration, "payload.json")              # warm
+                    oha(url, 1, args.duration, "payload.json")  # warm
                     r = oha(url, 1, args.duration, "payload.json")
                 samples[(g, fw)].append(r)
                 print(f"  r{rnd:>2} {g:34} {fw:6} -> {r['rps']:>8} rps  (ok={r['ok']})", flush=True)
@@ -141,13 +184,13 @@ def cmd_local(args):
             template = tmpl.format(port="{port}", w=workers)
             url = app_url(args.app_port, "/api/create")
             with Server(template, cwd, app_port=args.app_port, env=env):
-                oha(url, 1, 1, "payload.json")                              # warm
+                oha(url, 1, 1, "payload.json")  # warm
                 return oha(url, 1, args.duration_c1, "payload.json")
         tmpl, cwd = CONC_FRAMEWORKS[fw]
         template = tmpl.format(port="{port}", w=workers)
         url = app_url(args.app_port, "/api/iojob")
         with Server(template, cwd, app_port=args.app_port, env=env):
-            oha(url, 1, 1)                                                  # warm
+            oha(url, 1, 1)  # warm
             return oha(url, 50, args.duration)
 
     # round-robin: frameworks interleaved (a/b/c/a/b/c) so a transient spike spreads
@@ -175,12 +218,21 @@ def cmd_local(args):
         else:
             conc[fw][w] = aggregate(ss)
 
-    results = {"meta": {"date": os.environ.get("RUN_DATE", "unknown"),
-                        "load_tool": "oha", "sync_server": "uwsgi", "async_server": "uvicorn",
-                        "c1_server": "uwsgi (all frameworks, fair)",
-                        "rounds": args.rounds, "duration_s": args.duration,
-                        "order": "round-robin (framework-interleaved), mean of rounds"},
-               "workers_cases": WORKERS_CASES, "c1": c1, "concurrent": conc}
+    results = {
+        "meta": {
+            "date": os.environ.get("RUN_DATE", "unknown"),
+            "load_tool": "oha",
+            "sync_server": "uwsgi",
+            "async_server": "uvicorn",
+            "c1_server": "uwsgi (all frameworks, fair)",
+            "rounds": args.rounds,
+            "duration_s": args.duration,
+            "order": "round-robin (framework-interleaved), mean of rounds",
+        },
+        "workers_cases": WORKERS_CASES,
+        "c1": c1,
+        "concurrent": conc,
+    }
     path = save_results("results_local", results, args.output_dir)
 
     print(f"\n# mean rps by worker count over {args.rounds} round(s) (slow network op, concurrency=50)")
@@ -208,11 +260,15 @@ def cmd_kill(args):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def add_common(sp, *, duration_default):
-    sp.add_argument("--rounds", type=int, default=int(os.environ.get("ROUNDS", "1")),
-                    help="repeat the round-robin and average (>1 = 'slow' mode)")
-    sp.add_argument("--duration", type=float, default=duration_default,
-                    help="seconds of load per cell")
+    sp.add_argument(
+        "--rounds",
+        type=int,
+        default=int(os.environ.get("ROUNDS", "1")),
+        help="repeat the round-robin and average (>1 = 'slow' mode)",
+    )
+    sp.add_argument("--duration", type=float, default=duration_default, help="seconds of load per cell")
     sp.add_argument("--app-port", type=int, default=APP_PORT_DEFAULT)
     sp.add_argument("--ns-port", type=int, default=NS_PORT_DEFAULT)
     sp.add_argument("--output-dir", default=None, help="where to write results_*.json")
@@ -220,14 +276,17 @@ def add_common(sp, *, duration_default):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_local = sub.add_parser("local", help="original two panels, native (no Docker)")
     add_common(p_local, duration_default=float(os.environ.get("DURATION", "5")))
-    p_local.add_argument("--duration-c1", type=float, default=float(os.environ.get("DURATION_C1", "3")),
-                         help="seconds of load for the parse/validate (c=1) panel")
+    p_local.add_argument(
+        "--duration-c1",
+        type=float,
+        default=float(os.environ.get("DURATION_C1", "3")),
+        help="seconds of load for the parse/validate (c=1) panel",
+    )
     p_local.set_defaults(func=cmd_local)
 
     p_sm = sub.add_parser("server-matrix", help="parse/validate x {uWSGI, uvicorn}")

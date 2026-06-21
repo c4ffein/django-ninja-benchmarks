@@ -9,8 +9,10 @@ You normally never start this yourself -- `cli.py bench` spawns it (and reaps it
 around the runs that need it. It's exposed as `cli.py netsvc` only for poking the
 apps by hand. Listens on $PORT (default 8000).
 """
+
 import asyncio
 import os
+
 from sanic import Sanic
 from sanic.response import text
 
@@ -20,7 +22,7 @@ app = Sanic("some_job")
 @app.route("<path:path>")
 async def test(request, path):
     await asyncio.sleep(0.1)  # This is the work
-    return text('OK')
+    return text("OK")
 
 
 def main():

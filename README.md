@@ -32,6 +32,13 @@ uv run python cli.py bench local   # both panels -> benchmark_results/results_lo
 uv run python cli.py charts        # -> charts/<run-date>-{parse_validate,concurrency}{,-dark}.svg + index.html
 ```
 
+Lint/format are ruff (config in `pyproject.toml`, enforced by the `lint` CI workflow):
+
+```bash
+uvx ruff check .          # lint        (or: uv run --group dev ruff check .)
+uvx ruff format .         # auto-format
+```
+
 ### Runners / experiments
 
 `cli.py` is the single front door — run `cli.py --help` to see every tool. It's a

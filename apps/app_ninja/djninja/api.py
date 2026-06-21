@@ -1,7 +1,8 @@
 import os
-import aiohttp
 from datetime import datetime
 from typing import List
+
+import aiohttp
 from ninja import NinjaAPI
 from ninja.schema import Schema
 from pydantic import PositiveInt, constr
@@ -37,7 +38,7 @@ class Model(Schema):
     skills: List[Skill] = []
 
 
-NETWORK_SERVICE_URL = os.environ.get('NETWORK_SERVICE_URL', 'http://network_service:8000/job')
+NETWORK_SERVICE_URL = os.environ.get("NETWORK_SERVICE_URL", "http://network_service:8000/job")
 
 api = NinjaAPI()
 
@@ -56,5 +57,5 @@ async def create_async(request, model: Model):
 async def iojob(request):
     async with aiohttp.ClientSession() as http_client:
         r = await http_client.get(NETWORK_SERVICE_URL)
-        data = await r.text()
+        await r.text()  # drain the response body
     return {"success": True}

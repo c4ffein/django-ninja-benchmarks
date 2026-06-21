@@ -26,3 +26,19 @@ dependencies = [
 [tool.uv]
 # Scripts-only repo, not an installable package: don't try to build/install the project itself.
 package = false
+
+[dependency-groups]
+# Dev-only; not part of the benchmark stack. CI runs ruff via uvx, so this is just for local `uv run`.
+dev = ["ruff==0.14.4"]
+
+[tool.ruff]
+line-length = 120          # apps + matrices are hand-written to ~120; 88 would explode compact tables
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]          # the formatter owns line length; don't fail on unbreakable command strings / URLs
+
+[tool.ruff.lint.per-file-ignores]
+# Django settings compose the base config via `from ... import *`; those names ARE defined.
+"**/settings.py" = ["F403", "F405"]

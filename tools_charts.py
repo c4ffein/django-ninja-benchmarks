@@ -13,6 +13,7 @@ The default palette is monochrome (black / dark gray / light gray), inverted for
 the dark theme. Bar colors are overridable (applied to both themes):
   python tools_charts.py --ninja '#111111' --flask '#4285F4' --drf '#34A853' --adrf '#1E8E3E'
 """
+
 import argparse
 import json
 import math
@@ -41,9 +42,22 @@ def esc(s):
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def grouped_bar_svg(title, subtitle, groups, series, values, theme,
-                    ylabel="requests / second", xlabel=None, width=820, height=460,
-                    mb=76, value_labels=True, group_label_lines=None, legend_labels=None):
+def grouped_bar_svg(
+    title,
+    subtitle,
+    groups,
+    series,
+    values,
+    theme,
+    ylabel="requests / second",
+    xlabel=None,
+    width=820,
+    height=460,
+    mb=76,
+    value_labels=True,
+    group_label_lines=None,
+    legend_labels=None,
+):
     """groups: [label,...]  series: [name,...]  values: {group: {series: val}}
     theme: a THEMES entry (bg / text colors + per-series bar palette).
     xlabel: optional x-axis title under the group labels.
@@ -53,14 +67,15 @@ def grouped_bar_svg(title, subtitle, groups, series, values, theme,
     pw, ph = width - ml - mr, height - mt - mb
     maxv = max(v for g in values.values() for v in g.values())
     ytop, ticks = axis(maxv)
-    x0, y0 = ml, mt + ph  # bottom-left of plot
 
     def yp(v):
         return mt + ph - (v / ytop) * ph
 
     s = []
-    s.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-             f'viewBox="0 0 {width} {height}" font-family="-apple-system,Segoe UI,Roboto,sans-serif">')
+    s.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" font-family="-apple-system,Segoe UI,Roboto,sans-serif">'
+    )
     s.append(f'<rect width="{width}" height="{height}" fill="{theme["bg"]}"/>')
     s.append(f'<text x="{ml}" y="28" font-size="19" font-weight="700" fill="{theme["title"]}">{esc(title)}</text>')
     if subtitle:
@@ -69,10 +84,14 @@ def grouped_bar_svg(title, subtitle, groups, series, values, theme,
     # y gridlines + labels
     for t in ticks:
         y = yp(t)
-        s.append(f'<line x1="{ml}" y1="{y:.1f}" x2="{ml+pw}" y2="{y:.1f}" stroke="{theme["grid"]}"/>')
-        s.append(f'<text x="{ml-8}" y="{y+4:.1f}" font-size="11" fill="{theme["tick"]}" text-anchor="end">{int(t)}</text>')
-    s.append(f'<text x="16" y="{mt+ph/2:.0f}" font-size="12" fill="{theme["axis_label"]}" '
-             f'transform="rotate(-90 16 {mt+ph/2:.0f})" text-anchor="middle">{esc(ylabel)}</text>')
+        s.append(f'<line x1="{ml}" y1="{y:.1f}" x2="{ml + pw}" y2="{y:.1f}" stroke="{theme["grid"]}"/>')
+        s.append(
+            f'<text x="{ml - 8}" y="{y + 4:.1f}" font-size="11" fill="{theme["tick"]}" text-anchor="end">{int(t)}</text>'
+        )
+    s.append(
+        f'<text x="16" y="{mt + ph / 2:.0f}" font-size="12" fill="{theme["axis_label"]}" '
+        f'transform="rotate(-90 16 {mt + ph / 2:.0f})" text-anchor="middle">{esc(ylabel)}</text>'
+    )
 
     ng, nse = len(groups), len(series)
     gw = pw / ng
@@ -87,39 +106,48 @@ def grouped_bar_svg(title, subtitle, groups, series, values, theme,
             bx = gx + si * bw
             by = yp(v)
             bh = mt + ph - by
-            s.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw-3:.1f}" height="{bh:.1f}" '
-                     f'fill="{bars[name]}" rx="1.5"/>')
+            s.append(
+                f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw - 3:.1f}" height="{bh:.1f}" fill="{bars[name]}" rx="1.5"/>'
+            )
             if value_labels:
-                s.append(f'<text x="{bx+(bw-3)/2:.1f}" y="{by-5:.1f}" font-size="10.5" '
-                         f'fill="{theme["value"]}" text-anchor="middle">{int(round(v))}</text>')
+                s.append(
+                    f'<text x="{bx + (bw - 3) / 2:.1f}" y="{by - 5:.1f}" font-size="10.5" '
+                    f'fill="{theme["value"]}" text-anchor="middle">{int(round(v))}</text>'
+                )
         # group label (possibly multi-line)
         lines = (group_label_lines or {}).get(g, [g])
         ly = mt + ph + 20
         for li, line in enumerate(lines):
-            s.append(f'<text x="{ml+gi*gw+gw/2:.1f}" y="{ly+li*15:.1f}" font-size="12" '
-                     f'fill="{theme["group"]}" text-anchor="middle">{esc(line)}</text>')
+            s.append(
+                f'<text x="{ml + gi * gw + gw / 2:.1f}" y="{ly + li * 15:.1f}" font-size="12" '
+                f'fill="{theme["group"]}" text-anchor="middle">{esc(line)}</text>'
+            )
 
     # x-axis title, below the deepest group-label line
     if xlabel:
         maxlines = max(len((group_label_lines or {}).get(g, [g])) for g in groups)
         xy = mt + ph + 20 + maxlines * 15 + 6
-        s.append(f'<text x="{ml+pw/2:.1f}" y="{xy:.1f}" font-size="12" '
-                 f'fill="{theme["axis_label"]}" text-anchor="middle">{esc(xlabel)}</text>')
+        s.append(
+            f'<text x="{ml + pw / 2:.1f}" y="{xy:.1f}" font-size="12" '
+            f'fill="{theme["axis_label"]}" text-anchor="middle">{esc(xlabel)}</text>'
+        )
 
     # legend
     lx, lyy = ml, height - 16
     for name in series:
-        s.append(f'<rect x="{lx}" y="{lyy-10}" width="13" height="13" fill="{bars[name]}" rx="2"/>')
+        s.append(f'<rect x="{lx}" y="{lyy - 10}" width="13" height="13" fill="{bars[name]}" rx="2"/>')
         label = (legend_labels or LEGEND).get(name, name)
-        s.append(f'<text x="{lx+18}" y="{lyy:.0f}" font-size="12" fill="{theme["legend"]}">{esc(label)}</text>')
+        s.append(f'<text x="{lx + 18}" y="{lyy:.0f}" font-size="12" fill="{theme["legend"]}">{esc(label)}</text>')
         lx += 30 + 8 * len(label)
-    s.append('</svg>')
+    s.append("</svg>")
     return "\n".join(s)
 
 
 LEGEND = {
-    "ninja": "Django Ninja", "flask": "Flask + marshmallow",
-    "drf": "Django REST framework", "adrf": "adrf (async DRF)",
+    "ninja": "Django Ninja",
+    "flask": "Flask + marshmallow",
+    "drf": "Django REST framework",
+    "adrf": "adrf (async DRF)",
 }
 
 # Monochrome palette: ninja=black, flask=dark gray, drf=light gray (inverted for dark).
@@ -158,15 +186,20 @@ def chart_parse_validate(theme):
     groups = ["sync", "async"]
     series = ["ninja", "flask", "drf"]
     values = {
-        "sync":  {"ninja": sync["ninja"]["rps"], "flask": sync["flask"]["rps"], "drf": sync["drf"]["rps"]},
+        "sync": {"ninja": sync["ninja"]["rps"], "flask": sync["flask"]["rps"], "drf": sync["drf"]["rps"]},
         # async DRF cell is adrf -- keep the DRF color, note it in the group label
         "async": {"ninja": asyn["ninja"]["rps"], "flask": asyn["flask"]["rps"], "drf": asyn["adrf"]["rps"]},
     }
-    glabels = {"sync": ["sync  def", "(gunicorn / WSGI)"],
-               "async": ["async  def", "(uvicorn / ASGI, DRF=adrf)"]}
+    glabels = {"sync": ["sync  def", "(gunicorn / WSGI)"], "async": ["async  def", "(uvicorn / ASGI, DRF=adrf)"]}
     return grouped_bar_svg(
-        "Parsing / validation JSON", "concurrency = 1, requests/sec (higher is better)",
-        groups, series, values, theme, group_label_lines=glabels)
+        "Parsing / validation JSON",
+        "concurrency = 1, requests/sec (higher is better)",
+        groups,
+        series,
+        values,
+        theme,
+        group_label_lines=glabels,
+    )
 
 
 def chart_concurrency(theme):
@@ -185,10 +218,21 @@ def chart_concurrency(theme):
         "drf": "Django REST framework — uWSGI (sync)",
     }
     return grouped_bar_svg(
-        "Calling a slow network operation", "concurrency = 50  —  Django Ninja uses async views",
-        groups, series, values, theme, ylabel="requests / second",
-        xlabel="number of worker processes", width=980, height=500, mb=110,
-        value_labels=False, group_label_lines=glabels, legend_labels=legend)
+        "Calling a slow network operation",
+        "concurrency = 50  —  Django Ninja uses async views",
+        groups,
+        series,
+        values,
+        theme,
+        ylabel="requests / second",
+        xlabel="number of worker processes",
+        width=980,
+        height=500,
+        mb=110,
+        value_labels=False,
+        group_label_lines=glabels,
+        legend_labels=legend,
+    )
 
 
 def main():
@@ -226,6 +270,7 @@ def main():
 def index_html(date):
     def card(bg, src):
         return f'  <div style="background:{bg};padding:8px;border-radius:8px"><img src="{src}"></div>'
+
     return (
         "<!doctype html><meta charset=utf-8>"
         f"<title>django-ninja-benchmarks {date} charts</title>\n"
@@ -233,13 +278,14 @@ def index_html(date):
         f"<h2>django-ninja-benchmarks — {date} charts</h2>\n"
         "<p>Parse/validate (sync vs async) and concurrency (worker sweep) — light + dark.</p>\n"
         '<div style="display:flex;flex-wrap:wrap;gap:16px">\n'
-        f'{card("#fff", f"{date}-parse_validate-light.svg")}\n'
-        f'{card("#0d1117", f"{date}-parse_validate-dark.svg")}\n'
+        f"{card('#fff', f'{date}-parse_validate-light.svg')}\n"
+        f"{card('#0d1117', f'{date}-parse_validate-dark.svg')}\n"
         "</div>\n<hr>\n"
         '<div style="display:flex;flex-wrap:wrap;gap:16px">\n'
-        f'{card("#fff", f"{date}-concurrency-light.svg")}\n'
-        f'{card("#0d1117", f"{date}-concurrency-dark.svg")}\n'
-        "</div>\n</body>\n")
+        f"{card('#fff', f'{date}-concurrency-light.svg')}\n"
+        f"{card('#0d1117', f'{date}-concurrency-dark.svg')}\n"
+        "</div>\n</body>\n"
+    )
 
 
 if __name__ == "__main__":

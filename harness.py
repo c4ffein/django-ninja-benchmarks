@@ -6,6 +6,7 @@ that used to be copy-pasted across the three runner scripts lives here once.
 tools_microbench.py deliberately does NOT use this: it measures validation
 CPU in-process with no server/HTTP, so none of the plumbing below applies.
 """
+
 import json
 import os
 import signal
@@ -22,9 +23,7 @@ OHA = os.environ.get("BENCH_OHA") or os.path.expanduser("~/.local/bin/oha")  # o
 
 def env_for(ns_port):
     """Process env shared by app servers and the load run (points apps at the network service)."""
-    return {**os.environ,
-            "PYTHONPATH": BASE,
-            "NETWORK_SERVICE_URL": f"http://127.0.0.1:{ns_port}/job"}
+    return {**os.environ, "PYTHONPATH": BASE, "NETWORK_SERVICE_URL": f"http://127.0.0.1:{ns_port}/job"}
 
 
 def wait_port(port, up=True, timeout=30):
@@ -44,8 +43,7 @@ def wait_port(port, up=True, timeout=30):
 
 def _resolve(template, port):
     """Split a command template, prefixing the executable (token 0) with the venv bin dir."""
-    return [os.path.join(VENV, tok) if i == 0 else tok
-            for i, tok in enumerate(template.format(port=port).split())]
+    return [os.path.join(VENV, tok) if i == 0 else tok for i, tok in enumerate(template.format(port=port).split())]
 
 
 class Server:
@@ -61,8 +59,11 @@ class Server:
     def __enter__(self):
         self.proc = subprocess.Popen(
             _resolve(self.template, self.app_port),
-            cwd=os.path.join(BASE, self.cwd), env=self.env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            cwd=os.path.join(BASE, self.cwd),
+            env=self.env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         if not wait_port(self.app_port, up=True):
             self.proc.terminate()
             raise RuntimeError(f"failed to bind :{self.app_port} -> {self.template}")
@@ -86,8 +87,11 @@ def network_service(ns_port, env):
     """Context manager: run tools_network_service.py on ns_port for the enclosed block."""
     proc = subprocess.Popen(
         [os.path.join(VENV, "python"), "tools_network_service.py"],
-        cwd=BASE, env={**env, "PORT": str(ns_port)},
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cwd=BASE,
+        env={**env, "PORT": str(ns_port)},
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     if not wait_port(ns_port, up=True):
         proc.terminate()
         raise RuntimeError("network_service failed to start")
@@ -103,8 +107,17 @@ def network_service(ns_port, env):
 
 def oha(url, concurrency, duration, payload=None, oha_bin=None):
     """Run one oha load sample, return {rps, p50(ms), p99(ms), ok}."""
-    cmd = [oha_bin or OHA, "-z", f"{duration}s", "-c", str(concurrency),
-           "--no-tui", "--output-format", "json", "--disable-keepalive"]
+    cmd = [
+        oha_bin or OHA,
+        "-z",
+        f"{duration}s",
+        "-c",
+        str(concurrency),
+        "--no-tui",
+        "--output-format",
+        "json",
+        "--disable-keepalive",
+    ]
     if payload:
         cmd += ["-m", "POST", "-D", os.path.join(BASE, payload), "-T", "application/json"]
     cmd += [url]
@@ -126,8 +139,7 @@ def aggregate(samples, *, include_p50=True):
     n = len(vals)
     mean = sum(vals) / n
     std = (sum((v - mean) ** 2 for v in vals) / n) ** 0.5 if n > 1 else 0.0
-    out = {"rps": round(mean, 1), "rps_std": round(std, 1),
-           "rps_min": min(vals), "rps_max": max(vals)}
+    out = {"rps": round(mean, 1), "rps_std": round(std, 1), "rps_min": min(vals), "rps_max": max(vals)}
     if include_p50:
         p50s = sorted(s["p50"] for s in samples)
         out["p50"] = p50s[n // 2]
@@ -151,6 +163,7 @@ def save_results(name, obj, output_dir=None):
 # stray-process cleanup  (recover from a hard-killed / crashed run, where the
 # Server/network_service context managers never got to terminate their child)
 # ---------------------------------------------------------------------------
+
 
 def _socket_inodes_on_ports(ports):
     """Inodes of TCP sockets (v4+v6) whose local port is in `ports`."""

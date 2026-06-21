@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(0, '../..')
 
-from common_django_settings import *  # noqa
+from apps.common_django_settings import *  # noqa
 
 ROOT_URLCONF = 'drf.urls'
 WSGI_APPLICATION = 'drf.wsgi.application'

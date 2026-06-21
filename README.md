@@ -62,7 +62,7 @@ Every runner writes a `benchmark_results/results_*.json` that `cli.py charts` re
   network service all share the same ~8 cores on one machine — they are not pinned or
   isolated, so absolute rps is machine- and co-tenancy-dependent and will differ on
   your hardware. The *relative* ordering between frameworks is the durable result.
-- **The network service is a fixed-latency stand-in.** `network_service.py` is a Sanic
+- **The network service is a fixed-latency stand-in.** `tools_network_service.py` is a Sanic
   app whose only work is `await asyncio.sleep(0.1)`. That models a slow upstream/I/O
   call, but it also imposes a ceiling of ~10 req/s per in-flight connection — so in the
   concurrency panel the saturation you see is the async/worker model meeting that

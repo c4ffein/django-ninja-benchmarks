@@ -10,11 +10,9 @@ makes the whole workflow discoverable from one place (`cli.py --help`).
     cli.py microbench ninja|drf|marshmallow              # validation CPU only, no HTTP
     cli.py charts [--ninja/--flask/--drf/--adrf COLOR]   # render the SVG charts
     cli.py check --dir DIR [--baseline-dir DIR]          # gate results against invariants
+    cli.py netsvc                                        # the rig's fake upstream (bench starts it for you)
 
 Each tool forwards --help, so e.g. `cli.py bench --help` shows bench's own usage.
-
-Not wrapped: network_service.py -- it's spawned as a subprocess by the harness
-(and is a `tools_bench.py kill` signature), not a user-facing entry point.
 """
 import os
 import runpy
@@ -28,6 +26,7 @@ TOOLS = {
     "microbench": ("tools_microbench.py", "validation CPU only, no HTTP (one framework per process)"),
     "charts":     ("tools_charts.py", "render the parse/validate + concurrency SVG charts"),
     "check":      ("tools_check.py", "gate results_*.json against structural invariants"),
+    "netsvc":     ("tools_network_service.py", "the rig's fixed-latency fake upstream (bench auto-starts it)"),
 }
 
 

@@ -24,7 +24,7 @@ WORKERS_CASES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]   # concurrency-
 FRAMEWORK_NAMES = ("ninja", "flask", "drf")
 # cmdline fragments unique to this repo's servers -- used by `tools_bench.py kill` to
 # reap strays without catching unrelated uvicorn/gunicorn processes on the box.
-BENCH_SIGNATURES = ("network_service.py", "djninja", "drf.wsgi", "drf.asgi", "main:app")
+BENCH_SIGNATURES = ("tools_network_service.py", "djninja", "drf.wsgi", "drf.asgi", "main:app")
 
 # ---------------------------------------------------------------------------
 # matrices  (cmd templates: {port} filled by the harness, {w} filled here)

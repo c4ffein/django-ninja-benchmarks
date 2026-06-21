@@ -83,9 +83,9 @@ class Server:
 
 @contextmanager
 def network_service(ns_port, env):
-    """Context manager: run network_service.py on ns_port for the enclosed block."""
+    """Context manager: run tools_network_service.py on ns_port for the enclosed block."""
     proc = subprocess.Popen(
-        [os.path.join(VENV, "python"), "network_service.py"],
+        [os.path.join(VENV, "python"), "tools_network_service.py"],
         cwd=BASE, env={**env, "PORT": str(ns_port)},
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if not wait_port(ns_port, up=True):
@@ -221,7 +221,7 @@ def kill_strays(ports=(), signatures=(), grace=2.0):
     Deliberately scoped so it never touches unrelated servers: a PID is reaped
     only if it owns a socket on one of `ports` (the bench's app / network-service
     ports) OR its cmdline contains one of the bench-specific `signatures` (this
-    repo's app modules / network_service.py). SIGTERM, wait `grace`s, then
+    repo's app modules / tools_network_service.py). SIGTERM, wait `grace`s, then
     SIGKILL whatever is still alive. Returns {"terminated": [...], "killed": [...]}.
     """
     pids = _pids_owning_inodes(_socket_inodes_on_ports(ports)) | _pids_matching(signatures)

@@ -18,7 +18,7 @@
 
 ## 2026 local run (no Docker, no root)
 
-The original suite was Docker + `ab` + uWSGI on a 2020 stack. This branch replaces it
+The original suite was Docker + `ab` + uWSGI on a 2020 stack. The current version replaces it
 with a self-contained way to run natively with [uv](https://docs.astral.sh/uv/), a modern
 2026 stack, and [`oha`](https://github.com/hatoo/oha) instead of `ab` — no root needed
 (uv's managed Python ships headers, so even uWSGI compiles).
@@ -31,11 +31,6 @@ cargo install oha            # or grab a prebuilt binary from the oha releases
 uv run python bench.py local # both panels -> benchmark_results/results_local.json
 uv run python make_charts.py # -> charts/<run-date>-{parse_validate,concurrency}{,-dark}.svg + index.html
 ```
-
-What changed vs the original apps: the network-service URL is read from
-`NETWORK_SERVICE_URL` (so apps run outside Docker), `network_service.py` honors `PORT`,
-and each app gained an `async def` `/api/create_async` variant (Flask via `asgi.py`,
-DRF via `adrf`) for the route-style comparison below.
 
 ### Runners / experiments
 
@@ -71,9 +66,9 @@ that `make_charts.py` reads.
   concurrency panel the saturation you see is the async/worker model meeting that
   upstream floor, not a pure client-side limit.
 
-### Findings (this machine, 2026-06-14, 8 cores)
+### Findings (2026-06-14, 8 cores machine)
 
-- **Concurrency panel reproduces the original**: Ninja's async views saturate at 1
+- **Concurrency panel reproduces the 2020 original**: Ninja's async views saturate at 1
   worker (~385-478 rps, flat); sync Flask/DRF scale ~linearly with workers (19->~230 at 24).
   The sync curves are nearly identical — the whole gap is the async model, not the framework.
 - **Validation CPU (isolated)**: pydantic-2 (Ninja) **27 us** << marshmallow **95 us** <<

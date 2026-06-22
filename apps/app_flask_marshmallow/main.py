@@ -21,7 +21,7 @@ class SkillSchema(Schema):
     category = fields.Str(required=True)
     qual_level = fields.Str(required=True)
     qual_level_id = fields.Integer(required=True)
-    qual_level_ranking = fields.Float(default=0)
+    qual_level_ranking = fields.Float(load_default=0)  # load_default, not default (default is the dump-side value)
 
 
 class Model(Schema):
@@ -60,5 +60,5 @@ async def create_async():
 @app.route("/api/iojob", methods=["GET"])
 def iojob():
     response = requests.get(NETWORK_SERVICE_URL)
-    assert response.status_code == 200
+    response.raise_for_status()
     return {"success": True}, 200

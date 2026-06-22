@@ -3,7 +3,8 @@
 # cli.py orchestrates everything on 127.0.0.1 inside the container, so a single
 # `docker run djnb cli.py bench server-matrix` spins the app servers, the network
 # service, and the load run with no host-side docker-compose choreography.
-FROM python:3.13-slim-bookworm
+# Keep this tag in lockstep with .python-version (the pinned interpreter, 3.14).
+FROM python:3.14-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
@@ -32,6 +33,7 @@ WORKDIR /app
 # Dependency layer first for caching: install into /app/.venv from pyproject (+ lock if present).
 COPY pyproject.toml ./
 COPY uv.lock* ./
+COPY .python-version ./
 RUN uv venv /app/.venv \
     && uv pip install --python /app/.venv/bin/python -r pyproject.toml
 

@@ -45,7 +45,7 @@ class Model(serializers.Serializer):
 @api_view(["POST"])
 def create(request):
     data = Model(data=json.loads(request.body))
-    assert data.is_valid()
+    data.is_valid(raise_exception=True)  # raise_exception (not assert): asserts are stripped under -O
     return Response({"success": True})
 
 
@@ -53,12 +53,12 @@ def create(request):
 @async_api_view(["POST"])
 async def create_async(request):
     data = Model(data=json.loads(request.body))
-    assert data.is_valid()
+    data.is_valid(raise_exception=True)  # raise_exception (not assert): asserts are stripped under -O
     return Response({"success": True})
 
 
 @api_view(["GET"])
 def iojob(request):
     response = requests.get(NETWORK_SERVICE_URL)
-    assert response.status_code == 200
+    response.raise_for_status()
     return Response({"success": True})

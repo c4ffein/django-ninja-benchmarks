@@ -24,7 +24,7 @@ with a self-contained way to run natively with [uv](https://docs.astral.sh/uv/),
 (uv's managed Python ships headers, so even uWSGI compiles).
 
 ```bash
-uv venv --python-preference only-managed --python 3.14
+uv venv --python-preference only-managed   # interpreter pinned in .python-version (3.14)
 uv pip install -r pyproject.toml   # single source of truth for the stack (uv.lock pins transitives)
 
 # oha load generator -- pinned to the SAME version as the Dockerfile (OHA_VERSION) so
